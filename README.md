@@ -1,12 +1,14 @@
-# @strugglerx/vite-plugin-mpa
+# @struggler/vite-plugin-mpa
 
 > **中文** · [README_ZH.md](./README_ZH.md)
 
-[![npm version](https://img.shields.io/npm/v/@strugglerx/vite-plugin-mpa.svg)](https://www.npmjs.com/package/@strugglerx/vite-plugin-mpa)
+[![npm version](https://img.shields.io/npm/v/@struggler/vite-plugin-mpa.svg)](https://www.npmjs.com/package/@struggler/vite-plugin-mpa)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Vite](https://img.shields.io/badge/Vite-Plugin-646CFF?logo=vite)](https://vitejs.dev)
 
 A [Vite](https://vitejs.dev) plugin for **multi-page (MPA)** setups. It pairs with `build.rollupOptions.input` and multiple `index.html` entries: it resolves virtual entry IDs, serves the right page in **dev** (with optional `base` stripping), and supports optional **build-time** HTML minification.
+
+**npm:** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **GitHub:** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin)
 
 ## Contents
 
@@ -42,11 +44,11 @@ You can add **build-only** HTML minification via [html-minifier-terser](https://
 ## Install
 
 ```bash
-npm install @strugglerx/vite-plugin-mpa
+npm install @struggler/vite-plugin-mpa
 # or
-pnpm add @strugglerx/vite-plugin-mpa
+pnpm add @struggler/vite-plugin-mpa
 # or
-yarn add @strugglerx/vite-plugin-mpa
+yarn add @struggler/vite-plugin-mpa
 ```
 
 ## Build output in `dist`
@@ -82,7 +84,7 @@ If you set `entryFileNames`, extra output dirs, or other Rollup options, your la
 
 ```js
 // vite.config.js
-import { MpaPlugin } from "@strugglerx/vite-plugin-mpa"
+import { MpaPlugin } from "@struggler/vite-plugin-mpa"
 
 export default {
   plugins: [MpaPlugin()],
@@ -102,7 +104,7 @@ export default {
 ### `createMpaPlugin` — MPA + build-time HTML minify
 
 ```js
-import { createMpaPlugin } from "@strugglerx/vite-plugin-mpa"
+import { createMpaPlugin } from "@struggler/vite-plugin-mpa"
 
 export default {
   plugins: createMpaPlugin({ htmlMinify: true }),
@@ -188,7 +190,7 @@ When a `load` only matches by stripping the trailing `index.html` segment, `<sty
 
 ## Links
 
-- **npm** — <https://www.npmjs.com/package/@strugglerx/vite-plugin-mpa>
+- **npm** — <https://www.npmjs.com/package/@struggler/vite-plugin-mpa>
 - **Repository** — <https://github.com/strugglerx/vite-mpa-plugin>
 - **Issues** — <https://github.com/strugglerx/vite-mpa-plugin/issues>
 - **Vite** — <https://vitejs.dev>

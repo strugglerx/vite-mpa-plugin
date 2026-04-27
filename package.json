@@ -1,5 +1,5 @@
 {
-	"name": "@strugglerx/vite-plugin-mpa",
+	"name": "@struggler/vite-plugin-mpa",
 	"version": "1.1.0",
 	"description": "Vite MPA plugin: virtual multi-entry HTML resolve, dev server routing with optional base, optional HTML minify.",
 	"type": "module",
@@ -23,7 +23,7 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"test": "vitest run"
+		"test": "npx vitest run"
 	},
 	"devDependencies": {
 		"vitest": "^3.0.5"
@@ -45,7 +45,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/strugglerx/vite-mpa-plugin.git"
+		"url": "git+https://github.com/strugglerx/vite-mpa-plugin.git"
 	},
 	"bugs": {
 		"url": "https://github.com/strugglerx/vite-mpa-plugin/issues"

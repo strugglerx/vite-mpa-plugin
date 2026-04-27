@@ -1,12 +1,14 @@
-# @strugglerx/vite-plugin-mpa
+# @struggler/vite-plugin-mpa
 
 > **English** · [README.md](./README.md)
 
-[![npm version](https://img.shields.io/npm/v/@strugglerx/vite-plugin-mpa.svg)](https://www.npmjs.com/package/@strugglerx/vite-plugin-mpa)
+[![npm version](https://img.shields.io/npm/v/@struggler/vite-plugin-mpa.svg)](https://www.npmjs.com/package/@struggler/vite-plugin-mpa)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Vite](https://img.shields.io/badge/Vite-Plugin-646CFF?logo=vite)](https://vitejs.dev)
 
 基于 [Vite](https://vitejs.dev) 的多页面（MPA）辅助插件。在 `build.rollupOptions.input` 配置多个 `index.html` 入口时，通过虚拟模块解析与开发服务器中间件，让**构建**与**本地开发**下各 HTML 页都能被正确找到；可选在构建阶段对最终 HTML 做压缩。
+
+**npm 包：** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **源码仓库：** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin)
 
 ## 目录
 
@@ -42,11 +44,11 @@
 ## 安装
 
 ```bash
-npm install @strugglerx/vite-plugin-mpa
+npm install @struggler/vite-plugin-mpa
 # 或
-pnpm add @strugglerx/vite-plugin-mpa
+pnpm add @struggler/vite-plugin-mpa
 # 或
-yarn add @strugglerx/vite-plugin-mpa
+yarn add @struggler/vite-plugin-mpa
 ```
 
 ## 构建产物在 `dist` 哪里
@@ -85,7 +87,7 @@ export default {
 
 ```js
 // vite.config.js
-import { MpaPlugin } from "@strugglerx/vite-plugin-mpa"
+import { MpaPlugin } from "@struggler/vite-plugin-mpa"
 
 export default {
   plugins: [MpaPlugin()],
@@ -105,7 +107,7 @@ export default {
 ### `createMpaPlugin`：MPA + 构建期 HTML 压缩
 
 ```js
-import { createMpaPlugin } from "@strugglerx/vite-plugin-mpa"
+import { createMpaPlugin } from "@struggler/vite-plugin-mpa"
 
 export default {
   plugins: createMpaPlugin({ htmlMinify: true }),
@@ -195,7 +197,7 @@ MpaPlugin({
 
 ## 相关链接
 
-- **npm 包页** — <https://www.npmjs.com/package/@strugglerx/vite-plugin-mpa>
+- **npm 包页** — <https://www.npmjs.com/package/@struggler/vite-plugin-mpa>
 - **源码与版本** — <https://github.com/strugglerx/vite-mpa-plugin>
 - **问题反馈** — <https://github.com/strugglerx/vite-mpa-plugin/issues>
 - **Vite 文档** — <https://vitejs.dev>
