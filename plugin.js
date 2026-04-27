@@ -56,6 +56,46 @@ function logDebug(config, ...args) {
 	if (config.debug) console.log("[vite-plugin-mpa]", ...args)
 }
 
+/** @param {string|undefined} base Vite `config.base` */
+function joinViteBase(base, vPath) {
+	const p = replaceSlash(String(vPath).replace(/^\/+/, ""))
+	if (base == null || base === "" || base === "/" || base === "./") {
+		return "/" + p
+	}
+	const b = String(base).replace(/\/$/, "").replaceAll("\\", "/")
+	return `${b}/${p}`
+}
+
+/**
+ * 开发时打印 `input` 键 → 与中间件一致的页面 URL、源 `*.html`（在 `configResolved` 中读取，勿依赖 `options` 已执行）。
+ * @param {import('vite').ResolvedConfig} resolved
+ * @param {Record<string, unknown> & { logInputMap?: boolean }} mpaConfig
+ * @param {string} indexKey
+ */
+function logMpaInputMapOnDev(resolved, mpaConfig, indexKey) {
+	if (mpaConfig.logInputMap === false) return
+	if (resolved.command !== "serve") return
+	const input = resolved.build?.rollupOptions?.input
+	if (!input || typeof input !== "object" || Array.isArray(input)) return
+	const root = resolved.root
+	const base = resolved.base
+	const keys = Object.keys(input)
+	if (!keys.length) return
+	console.log("[vite-plugin-mpa] dev — build.rollupOptions.input 映射：键 → 页面 URL，源文件")
+	for (const k of keys) {
+		const vPath = computeVirtualPath(k, input[k], root, indexKey)
+		const pageUrl = joinViteBase(base, vPath)
+		const abs = path.isAbsolute(input[k]) ? path.normalize(input[k]) : path.join(root, input[k])
+		let rel
+		try {
+			rel = replaceSlash(path.relative(root, abs)) || "."
+		} catch {
+			rel = String(input[k])
+		}
+		console.log(`[vite-plugin-mpa]  "${k}"  →  ${pageUrl}   ←  ${rel}`)
+	}
+}
+
 /**
  * @param {Record<string, string>} inputMap
  * @param {string} root
@@ -90,6 +130,7 @@ export function MpaPlugin(config = {}) {
 		name: "Mpa",
 		configResolved(resolved) {
 			resolvedConfig = resolved
+			logMpaInputMapOnDev(resolved, config, indexKey)
 		},
 		options(option) {
 			const input = option.input

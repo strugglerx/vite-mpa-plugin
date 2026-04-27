@@ -6,28 +6,37 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Vite](https://img.shields.io/badge/Vite-Plugin-646CFF?logo=vite)](https://vitejs.dev)
 
-基于 [Vite](https://vitejs.dev) 的多页面（MPA）辅助插件。在 `build.rollupOptions.input` 中配置多份 `index.html` 时，用**虚拟入口**对齐磁盘上的真实 HTML，让构建与 dev 的解析一致；`rollup` 的 **键名** 决定**产物在 `dist` 里的大致路径**（与源码目录可不同），`input` 的**值** 指向各页实际文件。可选在构建期压缩 HTML。更新说明见 [CHANGELOG.md](./CHANGELOG.md)。
+## 适用场景
 
-**npm 包：** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **源码仓库：** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin)
+适合这些情况：
+
+- **一个仓库里多套互相独立的前端**（如多个子目录各有一套 `index.html` + 入口 JS/Vue，彼此之间不必打进同一个单页 bundle）：活动页、管理端与官网后台、**同一 Vite 项目里多个「小站点」**等。
+- 希望 **线上或静态托管时的访问路径** 由你自定义（`main/login/promo` 等），**不强制** 与源码目录一一对应；`rollupOptions.input` 的 **键** 决定 `dist` 里 HTML 落在哪、**值** 仍指向真实 `*.html`（见下节 [`input` 与产物](#input-怎么配产物在哪里)）。
+- 需要 **开发 `pnpm run dev` 与 `vite build` 用同一套规则**（虚拟路径、`base` 一致），并可选在启动 dev 时 **打印「键 → 页面 URL」映射**（`logInputMap`）。
+
+本插件不替代 Vite 自带的多页配置，而是补上 **多入口在 dev/build 下路径一致、相对脚本可写、键 `index` 在根上单独成页** 等 MPA 常见痛点。更细的机制见 [它解决什么问题](#它解决什么问题)。
+
+**npm 包：** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **源码仓库：** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin) · 更新说明 [CHANGELOG.md](./CHANGELOG.md)
 
 **特性一览**
 
 |  |  |
 |--|--|
-| 键名 → 产物路径 | 虚拟 HTML 按键生成规则（如 `index` → `index.html`，`login` → `login/index.html`），构建后在 `writeBundle` 中归位到与键一致的路径。 |
+| 键名 → 产物路径 | 虚拟 HTML 按 [键与虚拟路径](#rollupoptionsinput-的键与虚拟路径) 生成；**仅键名为 `index` 时**在根下为单个 `index.html`（无 `index/` 目录），其它短键为 `键名/index.html`（如 `login` → `login/index.html`）。 |
 | 多键同页 | 多个键可指向同一 `*.html`，打多份到各自虚拟路径。 |
 | 开发体验 | 中间件 `order: 'pre'`，用与生产相近的「虚拟」URL 访问；支持 `base` 剥前缀。 |
 | `./main.js` | 默认将相对 `src` / `href` 改写为相对项目根路径（`rewriteHtmlRelativeToRoot`），可关。 |
 | 其它 | 占位符 `inject`、目录型页的 `styleInline`、可扩展 `createMpaPlugin` + `htmlMinify`。 |
 
-**示例项目** [example/](example/)：两个独立 Vue 3 子应用（`app/page1/`、`app/page2/`），`input` 键为 `main`、`login`，产物为 `dist/main/index.html` 与 `dist/login/index.html`；根目录另有 `public/index.html` 作导航。主入口不占用键名 `index`，避免与根 `index.html` 冲突。
+**示例项目** [example/](example/)：两套独立 Vue 3 多页子应用（`app/page1/`、`app/page2/`）；演示 `index` / `main` 同指一页、`login` 指向另一套，并含根导航 `public/index.html`。构建后见 `example/dist` 与 [上文说明](#input-怎么配产物在哪里)。
 
 ## 目录
 
+- [适用场景](#适用场景)
 - [它解决什么问题](#它解决什么问题)
 - [要求](#要求)
 - [安装](#安装)
-- [构建产物在 dist 哪里](#构建产物在-dist-哪里)
+- [`input` 怎么配、产物在哪里](#input-怎么配产物在哪里)
 - [用法](#用法)
 - [配置项](#配置项)
 - [TypeScript](#typescript)
@@ -64,39 +73,45 @@ pnpm add @struggler/vite-plugin-mpa
 yarn add @struggler/vite-plugin-mpa
 ```
 
-## 构建产物在 `dist` 哪里
+## `input` 怎么配、产物在哪里
 
-Vite 多页构建时，**默认** `build.outDir` 为 `dist`；在**未**自定义 `build.rollupOptions.output` 里 HTML 的命名规则时，**每个入口键**通常对应**根目录**下一个 `.html` 文件。
+约定（`build.outDir` 默认可理解为 `dist`，下文路径均相对它）：
 
-例如：
+| | 含义 |
+|--|------|
+| `input` 的**值** | 磁盘上**真实**的 `*.html` 路径，Vite 从这份文件进打包；脚本/资源按该文件所在目录解析。 |
+| `input` 的**键** | 决定**打包后**那份 HTML 在 `dist` 里落在哪（**虚拟路径**；与「值」的目录可以完全不同）。 |
+
+**键 → 产出的 HTML 路径**（默认 `indexHtml` 为 `index.html` 时；键名以 `xxx.html` 形式结尾时见 [下表详列](#rollupoptionsinput-的键与虚拟路径)）：
+
+| 键 | 产物（相对 `outDir`） |
+|----|------------------------|
+| `index` | `index.html`（**仅根下这一份**，没有 `index/` 目录） |
+| 其它单段键，如 `main`、`login` | `键名/index.html`，如 `main/index.html` |
+
+**配置与结果示例**（同 [example](example/)）：
 
 ```js
-// vite.config.js（节选）
-export default {
-  build: {
-    // outDir 默认 'dist'
-    rollupOptions: {
-      input: {
-        index: "index.html",
-        about: "src/pages/about/index.html",
-      },
-    },
-  },
+// build.rollupOptions.input
+{
+  main:  "app/page1/index.html",
+  login: "app/page2/index.html",
 }
 ```
 
-| `input` 的**键** | 典型输出路径（`outDir: 'dist'`） | 说明 |
-|------------------|----------------------------------|------|
-| `index` | `dist/index.html` | 主入口，对应你磁盘上的 `index: "index.html"` |
-| `about` | `dist/about.html` | 与键名一致，**不是** `dist/about/index.html`（除非你在 Rollup 输出里自己改了 `entry`/`chunk` 的命名与目录） |
+→ 得到 `dist/main/index.html`、`dist/login/index.html`。`public/index.html` 若存在，会**额外**被 Vite 复制为 `dist/index.html`，**不是**由上面某一条 `input` 算出来的；example 用键名 `main` 而不是 `index`，避免和根 `index` 争路径。
 
-**使用本插件时：** 虚拟 HTML 路径与 **`input` 的键** 及下述 [键与虚拟路径](#rollupoptionsinput-的键与-虚拟路径) 规则一致。Vite 可能先按源码位置写出 HTML，插件在 `writeBundle` 中再**挪**到与键一致的路径；**无需** `outHtml` 配置。`input` 的**值**是磁盘上真实 `*.html`，脚本/资源按该文件所在目录解析。
+`dist` 实勘树（[example](example/) 在 `example/` 下 `vite build`，`assets` 里带 hash 的文件名每次构建可能变）：
 
-**多个键指向同一 `*.html`：** 会生成多份 HTML（各键一条虚拟路径），构建时从 Vite 写出的一份源文件**复制**到多个目标；开发时若用源码深路径访问，该路径只与**先出现**的键关联（用于 `inject` 等页级上下文）。
+```text
+example/dist/
+├── index.html                 # public
+├── main/index.html            # 键 main
+├── login/index.html          # 键 login
+└── assets/                    # JS/CSS 等
+```
 
-若你在 `build.rollupOptions.output` 中配置了 `entryFileNames`、多输出目录、或 Vite 的其它产物策略，**以你最终配置为准**；上表是 Vite 多页、默认选项下的**常见**布局。
-
-在仓库根运行 `npx vite build` 可在你项目里实勘生成文件；也可查阅 [Vite 多页应用构建说明](https://cn.vitejs.dev/guide/build.html#multi-page-app)。
+Vite 可能先把 HTML 按源码位置写出，插件再在 `writeBundle` 里**挪**到上表对应路径。**多个键**指向**同一份** `*.html` 时，会打多份，各落一路径；你改了 `rollupOptions.output` 等时以实勘为准。无插件时纯 Vite 多页常是 `dist/键名.html`，与上表**不同**。[Vite 多页说明](https://cn.vitejs.dev/guide/build.html#multi-page-app)。
 
 ## 用法
 
@@ -154,6 +169,7 @@ export default {
 | `styleInline` | 同上 | 仅影响「目录型」`load` 路径（如 `about/index.html` 解析到 `about` 键时）是否对 `<style>` 做脚本注入。默认 `true`；设 `false` 可关闭。 |
 | `transformHtml` | 同上 | `(html, { key, phase: 'load' \| 'serve' }) =>` 返回 HTML；`load` 在构建；`serve` 在 dev 中间件。在 `load` 链中于 `styleInline` 之前、**之后**为 `replaceInject`（见下顺序）。 |
 | `debug` | 同上 | `true` 时向控制台输出 `[vite-plugin-mpa]` 解析日志。 |
+| `logInputMap` | 同上 | 默认在 **dev**（`vite` / `pnpm run dev`）启动时打印各 `input` **键** → 页面 URL（含 `base`）← 源 `*.html`；设 `false` 可关闭。`build` 不打印。 |
 | `rewriteHtmlRelativeToRoot` | 同上 | 默认 `true`：把各页 `script[src]`、`link[href]` 里以 `./`、`../` 开头的路径改写成相对项目 `root` 的 URL（并带 `config.base`），这样在 `input` 键与源码目录不一致、且产物落在 `dist/index.html` 等键名路径时，仍可在 HTML 里写 `./main.js`。若你已全部使用根路径或绝对地址，可设 `false`。 |
 | `htmlMinify` | 仅 `createMpaPlugin` | `true` 使用默认压缩；`object` 为 [html-minifier-terser](https://github.com/terser/html-minifier-terser#options-quick-reference) 选项；未设置不压缩。 |
 
@@ -184,13 +200,19 @@ MpaPlugin({
 
 ## `rollupOptions.input` 的键与虚拟路径
 
-（以下默认主入口文件名为 `index.html`，与 `indexHtml` 配置一致。）
+（以下默认主入口文件名为 `index.html`，与插件选项 **`indexHtml`** 一致；若你配置了 `MpaPlugin({ indexHtml: "main.html" })`，下表中的「`index.html`」均指 `main.html`。）
 
 | 键 | 虚拟路径（相对 `root` 的路径语义） |
 |----|--------------------------------------|
 | 以 `.html` 结尾 | 与键相同，例如 `entry.html` |
-| 恰好为 `index` | 你的 `indexHtml`（默认 `index.html`） |
+| 恰好为 `index` | **根下单独一个文件**：`<indexHtml>`（默认 `index.html`），**不是** `index/index.html` |
 | 其他 | `${键}/<indexHtml>`（默认即 `${键}/index.html`） |
+
+**为何单独强调键 `index`：** 只有键名**严格等于**字符串 `index` 时，虚拟路径是「`root` 下的一个同名 HTML 文件」——与「普通短键」不同。例如键 `main`、`login` 会落在 `main/index.html`、`login/index.html` 这种**目录 + 文件名**；而键 `index` 会落在 `index.html`（在 `root` 下），**没有**中间的 `index/` 目录。这样符合常见习惯：主站入口在站点的 `/index.html`（或带 `base` 的同构路径），其它子应用各占子路径。若你希望主应用也在 `myapp/index.html` 这种结构下，请不要用键 `index`，改用键名如 `myapp` 或 `app`。
+
+**与 `public/index.html`：** 根路径 `index.html` 往往已被 `public/index.html` 或静态导航占用。若 MPA 主入口**也**用键 `index`，会与「根 `index.html`」争同一路径，典型做法是主应用改用键名如 `main`（见 [example](example/)），或不要同时放会冲突的 `public/index.html`。
+
+**与键名 `index.html` 的区别：** 若 `input` 的键是 **`index.html`**（以 `.html` 结尾），按上表第一行，虚拟路径就是字面量 `index.html`；这与键 **`index`** 在默认 `indexHtml` 下结果相同，但 `inject` / `transformHtml` 的 `key` 参数分别是 `"index.html"` 与 `"index"`，请注意区分。
 
 构建阶段 `load` 时，除直接按键名等于相对路径的条目匹配外，还会把路径去掉末尾的 `/<indexHtml>` 再按**键**匹配；**仅在后者**上默认执行 `styleInline` 对应的 `replaceIndexStyle`（若未关闭）。
 
@@ -198,7 +220,7 @@ MpaPlugin({
 
 中间件在排除含 `@` 的路径后，**会先用 [Vite 的 `config.base`](https://cn.vitejs.dev/config/shared-options.html#base) 从 `pathname` 中剥掉子路径**（如 `base: '/app/'` 时，请求 `/app/about` 按 `about` 去匹配 `input`）。
 
-空路径、`.html` 结尾、以及无扩展名路径的匹配与上文 [构建产物在 dist 哪里](#构建产物在-dist-哪里) 的入口键说明一致，不再赘述；**本插件新增**的是按 `config.base` 从 URL 中剥掉子路径再匹配 `input`。
+空路径、`.html` 结尾、以及无扩展名路径的匹配与上文 [`input` 与产物](#input-怎么配产物在哪里) 一致，不再赘述；**本插件新增**的是按 `config.base` 从 URL 中剥掉子路径再匹配 `input`。
 
 **开发时访问的 URL 与「虚拟路径」一致**（与 [键与虚拟路径](#rollupoptionsinput-的键与虚拟路径) 表、以及 `dist` 下最终 HTML 路径同一套规则，例如键 `index` → `/index.html`，键 `login` → `/login/index.html`）。中间件使用 Vite 的 `configureServer`，并设 **`order: 'pre'`**，在多数情况下会先于 `public` 下的静文件处理，这样上述地址能直接打开对应 MPA，而不必在开发时强制用源码目录深路径。若项目里同时存在 `public/index.html` 与 `input` 键为 `index` 的入口，两者会争 `/index.html`：可给主应用换键名（如 `main`）、或调整 `public` 下的文件名。
 

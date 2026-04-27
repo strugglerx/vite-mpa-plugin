@@ -32,6 +32,11 @@ export interface MpaPluginConfig {
 	/** 为 true 时往控制台打解析路径（`[vite-plugin-mpa]` 前缀） */
 	debug?: boolean
 	/**
+	 * 为 `false` 时关闭：开发服务器（`vite` / `pnpm run dev`）启动时在控制台打印 `build.rollupOptions.input` 各**键**对应的页面 URL（与 `config.base` 拼接）及源 `*.html` 路径。
+	 * @default true（仅 `serve` 时打印；`vite build` 不打印）
+	 */
+	logInputMap?: boolean
+	/**
 	 * 是否把各页 HTML 里 `script[src]`、`link[href]` 中以 `./`、`../` 开头的路径改写成相对 `root` 的 URL（并带 `config.base`），
 	 * 使 `input` 键与源码目录脱钩、且产物落在 `dist/index.html` 等键名路径时，仍可在源码里写 `./main.js`。默认 `true`；若你已在模板里写死绝对路径且无需改写，可设 `false`。
 	 */

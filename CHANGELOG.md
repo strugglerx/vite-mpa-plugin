@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1
+
+### 新增
+
+- **开发启动日志**：`vite` / `pnpm run dev` 时（默认）在控制台打印 `build.rollupOptions.input` 各键对应的页面 URL（已拼 `config.base`）与源 `*.html` 路径。关闭：`MpaPlugin({ logInputMap: false })`。
+
+### 文档
+
+- 文首增加**适用场景**；完善「`input` 怎么配、产物在哪里」、示例 `dist` 与配置说明。
+
 ## 1.2.0
 
 **相对 1.1.x 的重要变更**：产物 HTML 的**相对 `dist` 路径**由 `rollupOptions.input` 的**键**按 [虚拟路径规则](README_ZH.md#rollupoptionsinput-的键与虚拟路径)决定，不再强制与源码目录一致；构建时若与 Vite 先写出的路径不同，插件会在 `writeBundle` 中**移动/复制** HTML。从 1.1.x 升级请检查线上 URL、导航链接与 `public` 里是否已有与键同名的 `index.html`。

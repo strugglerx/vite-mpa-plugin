@@ -18,6 +18,7 @@ export default defineConfig({
 	build: {
 		rollupOptions: {
 			input: {
+				index: r("app/page1/index.html"),
 				main: r("app/page1/index.html"),
 				login: r("app/page2/index.html"),
 			},

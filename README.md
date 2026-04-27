@@ -6,26 +6,33 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Vite](https://img.shields.io/badge/Vite-Plugin-646CFF?logo=vite)](https://vitejs.dev)
 
-A [Vite](https://vitejs.dev) plugin for **multi-page (MPA)** apps. For each `build.rollupOptions.input` entry, the **key** chooses the **virtual** HTML path (and thus the usual `dist/…` layout), while the **value** points at the real `*.html` on disk (absolute paths are fine). Virtual module resolution keeps dev and build consistent; optional build-time HTML minify. See [CHANGELOG.md](./CHANGELOG.md) for release notes.
+## When to use it
 
-**npm:** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **GitHub:** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin)
+- **Multiple independent frontends in one repo** — e.g. several folders each with `index.html` + app entry, without merging them into one SPA bundle: landing pages, admin vs marketing, or several “mini sites” in a single Vite project.
+- **URLs you control** — deployment paths like `/main/`, `/login/` come from the **`input` key**, while the **value** is still the real `*.html` on disk; no need to mirror the source tree (see [`input` → where files land](#input--where-files-land-in-dist)).
+- **Same rules in dev and build** — virtual paths, `config.base`, and optional **startup log of key → page URL** on `pnpm run dev` (`logInputMap`).
+
+This plugin augments Vite’s multi-page flow so dev and build stay aligned, relative scripts keep working, and the special `index` key maps to a single root `index.html`. Details: [What it does](#what-it-does).
+
+**npm:** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **GitHub:** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin) · [CHANGELOG.md](./CHANGELOG.md)
 
 |  |  |
 |--|--|
-| Key → output | Virtual path per [key rules](#rollup-input-keys-and-virtual-paths); `writeBundle` relayout to match when Vite first emits under the source tree. |
+| Key → output | [Key rules](#rollup-input-keys-and-virtual-paths): only the literal key `index` maps to a **root** `index.html` (not `index/index.html`); any other key like `main` or `login` uses `key/index.html`. `writeBundle` relayouts when Vite first emits under the source tree. |
 | Same file, many keys | Multiple `input` keys can target one `*.html`; each key gets its own output path. |
 | Dev | `configureServer` with `order: 'pre'`, URL shape close to production; `base` stripping. |
 | `./main.js` | Optional rewrite of relative `script` / `link` URLs to root-based paths (`rewriteHtmlRelativeToRoot`, on by default). |
 | More | `inject`, `styleInline`, `createMpaPlugin` + `htmlMinify`. |
 
-**Example** [example/](example/): two Vue 3 mini-apps under `app/page1/` and `app/page2/`; keys `main` and `login` → `dist/main/index.html`, `dist/login/index.html`. A root `public/index.html` is the nav; the first app is not keyed `index` to avoid clashing with `/index.html`.
+**Example** [example/](example/): two Vue 3 MPA apps under `app/page1/` and `app/page2/`; shows multiple keys to one page (`index` and `main` → same HTML) and `login` to the other, plus a root `public/index.html` for navigation. See `example/dist` and the [`input` section](#input--where-files-land-in-dist).
 
 ## Contents
 
+- [When to use it](#when-to-use-it)
 - [What it does](#what-it-does)
 - [Requirements](#requirements)
 - [Install](#install)
-- [Build output in `dist`](#build-output-in-dist)
+- [`input` → where files land](#input--where-files-land-in-dist)
 - [Usage](#usage)
 - [Options](#options)
 - [TypeScript](#typescript)
@@ -62,36 +69,45 @@ pnpm add @struggler/vite-plugin-mpa
 yarn add @struggler/vite-plugin-mpa
 ```
 
-## Build output in `dist`
+## `input` → where files land in `dist`
 
-By default, `build.outDir` is `dist`. If you have **not** customized HTML naming in `build.rollupOptions.output`, each **rollup `input` key** usually becomes one `.html` at the **root** of the output directory.
+(`build.outDir` defaults to `dist`; paths below are relative to it.)
 
-Example:
+| | Meaning |
+|--|---------|
+| **`input` value** | The **real** `*.html` on disk — Vite bundles from that file; script/asset resolution uses that file’s directory. |
+| **`input` key** | Chooses the **output** path for that entry’s built HTML in `dist` (the virtual path, which can differ from the value’s folder). |
+
+**Key → built HTML** (with default `indexHtml: "index.html"`; keys that end in `.html` are [listed below](#rollup-input-keys-and-virtual-paths)):
+
+| Key | Output (relative to `outDir`) |
+|-----|------------------------------|
+| `index` | `index.html` only at the root (**not** `index/index.html`) |
+| Other one-segment keys, e.g. `main`, `login` | `key/index.html` |
+
+**Example (same as [example](example/)):**
 
 ```js
-// vite.config.js (excerpt)
-export default {
-  build: {
-    rollupOptions: {
-      input: {
-        index: "index.html",
-        about: "src/pages/about/index.html",
-      },
-    },
-  },
+// build.rollupOptions.input
+{
+  main:  "app/page1/index.html",
+  login: "app/page2/index.html",
 }
 ```
 
-| `input` **key** | Typical file (`outDir: 'dist'`) | Note |
-|-----------------|--------------------------------|------|
-| `index` | `dist/index.html` | Main entry, matches `index: "index.html"` on disk |
-| `about` | `dist/about.html` | Named from the key — **not** `dist/about/index.html` unless you change Rollup output options |
+→ `dist/main/index.html` and `dist/login/index.html`. If `public/index.html` exists, Vite also copies it to `dist/index.html` — that file is **not** produced by a key above. The example uses `main` instead of `index` for the first app to avoid clashing with the root `index.html`.
 
-**With this plugin:** the **virtual** HTML path (and, after a built-in relayout step, the `dist/…` layout) follow the **rollup `input` key** and the [virtual-path table](#rollup-input-keys-and-virtual-paths) (e.g. key `main` + file `app/page1/index.html` → `main/index.html` at `dist/…`). The **value** in `input` is the real `*.html` on disk; script and asset resolution use that file’s real directory. (Vite may first emit under the source path; the plugin then moves the file to the key path when they differ, without an `outHtml` option.)
+**Sample tree** after `vite build` in `example/` (hashed `assets/*` names change between builds):
 
-**Multiple keys for the same `*.html`:** you get one built HTML per key (same content, different output paths). The plugin copies from Vite’s single emitted file under the source path to **each** target path, then deletes the source once. If you open the project by the deep source URL in dev, the first matching key wins for `inject` / context.
+```text
+example/dist/
+├── index.html          # from public
+├── main/index.html     # key main
+├── login/index.html    # key login
+└── assets/             # JS/CSS chunks
+```
 
-If you set `entryFileNames`, extra output dirs, or other Rollup options, your layout may differ; run `npx vite build` and inspect. See [Vite — Multi-page app](https://vitejs.dev/guide/build.html#multi-page-app).
+Vite may emit HTML under the **source** path first; this plugin then **moves** it in `writeBundle` to match the table. **Several keys** for the **same** `*.html` produce one output per key. If you change Rollup `output` options, verify with a real build. **Plain Vite (no plugin)** often uses `key.html` at the **root** of `dist` — different from the table. See [Vite — MPA](https://vitejs.dev/guide/build.html#multi-page-app) and the [virtual-path table](#rollup-input-keys-and-virtual-paths).
 
 ## Usage
 
@@ -149,6 +165,7 @@ export default {
 | `styleInline` | same | For “directory” `load` paths (e.g. `about/index.html` → `about` key), whether to inject `<style>` via a script. Default `true`; set `false` to skip. |
 | `transformHtml` | same | `(html, { key, phase: 'load' \| 'serve' }) =>` HTML. See pipeline below. |
 | `debug` | same | `true` logs resolution under `[vite-plugin-mpa]`. |
+| `logInputMap` | same | On **dev** (`vite`, `pnpm run dev`), logs each `input` **key** → page URL (with `base`) ← source `*.html`. Default `true`; set `false` to silence. No print on `build`. |
 | `rewriteHtmlRelativeToRoot` | same | Default `true`: rewrites `./` / `../` in `script[src]` and `link[href]` to a path from project `root` (with `config.base`), so `./main.js` still works when `input` keys do not mirror the source folder and `dist` HTML is moved to the key path. Set `false` if you only use fixed or root-absolute URLs. |
 | `htmlMinify` | `createMpaPlugin` only | `true` (defaults), an options object, or unset (no minify plugin). |
 
@@ -179,19 +196,25 @@ Types are in [index.d.ts](./index.d.ts). `vite` is a peer; add `npm i -D vite` i
 
 ## Rollup `input` keys and virtual paths
 
-(Assuming default `indexHtml` of `index.html`.)
+(Assuming the plugin’s **`indexHtml`** option matches your entries—default is `index.html`. If you set `MpaPlugin({ indexHtml: "main.html" })`, replace `index.html` below with that filename.)
 
 | Key | Virtual path (relative to `root`) |
 |-----|-----------------------------------|
 | Ends with `.html` | Same as the key, e.g. `entry.html` |
-| Exactly `index` | Your `indexHtml` (default `index.html`) |
-| Anything else | `${key}/<indexHtml>` (e.g. `about/index.html` by default) |
+| **Exactly the string `index`** | A **single file at the project root**: `<indexHtml>` (default `index.html`). **Not** `index/index.html`. |
+| Anything else | `${key}/<indexHtml>` (e.g. `main/index.html`, `login/index.html` by default) |
+
+**Why `index` is special:** Only when the rollup input key is the literal string `index` does the virtual path point to one HTML file **directly under** `root` (e.g. `index.html`). For any other short key like `main` or `login`, the path is **`<key>/<indexHtml>`** (a “folder + file” under `root`). So the main MPA at key `index` lines up with `/index.html` at the site root, while other apps use `/main/index.html`, `/login/index.html`, etc. If you need the “main” app to also live at `myapp/index.html`, don’t use the key `index`—use e.g. `myapp` or `app` as the key.
+
+**`public/index.html`:** The root `index.html` is often used for a static landing page. If the MPA also uses the key `index`, both target the same path—use another key (e.g. `main` for the first app) or change `public`, as in the [example](example/).
+
+**Key `index` vs key `index.html`:** A key literally named `index.html` (first table row) also resolves to a path ending in `index.html`, but the `key` passed to `inject` / `transformHtml` is the string `index.html`, not `index`. Pick one convention and stay consistent.
 
 On `load`, besides matching a key that equals a relative path, the plugin can strip a trailing `/<indexHtml>` and match by key; **`replaceIndexStyle` runs only on that “directory-style” path** (unless `styleInline: false`).
 
 ## Dev server and `base`
 
-After ignoring paths that contain `@` (Vite internals), the middleware **strips** [`config.base`](https://vitejs.dev/config/shared-options.html#base) from the URL (e.g. `base: '/app/'` and request `/app/about` → match `input` key `about`). Path shape rules (empty, `.html`, or extensionless) align with the [build key table](#build-output-in-dist) above; the **new** part here is `base` handling.
+After ignoring paths that contain `@` (Vite internals), the middleware **strips** [`config.base`](https://vitejs.dev/config/shared-options.html#base) from the URL (e.g. `base: '/app/'` and request `/app/about` → match `input` key `about`). Path shape rules (empty, `.html`, or extensionless) align with the [`input` → output](#input--where-files-land-in-dist) section above; the **new** part here is `base` handling.
 
 **Dev URLs match the virtual paths** (same rules as the [virtual-path table](#rollup-input-keys-and-virtual-paths) and the built `dist` layout, e.g. key `index` → `/index.html`, key `login` → `/login/index.html`). The middleware is registered with **`configureServer` + `order: 'pre'`** so it usually runs **before** static `public` files, and you can open those paths without relying on a deep source-only URL. If both `public/index.html` and an MPA `index` key exist, they compete for `/index.html`—use another key (e.g. `main`) for the app, or adjust `public`.
 
