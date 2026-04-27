@@ -1,0 +1,54 @@
+{
+	"name": "@strugglerx/vite-plugin-mpa",
+	"version": "1.1.0",
+	"description": "Vite MPA plugin: virtual multi-entry HTML resolve, dev server routing with optional base, optional HTML minify.",
+	"type": "module",
+	"main": "./index.js",
+	"types": "./index.d.ts",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"import": "./index.js",
+			"default": "./index.js"
+		}
+	},
+	"files": [
+		"index.js",
+		"plugin.js",
+		"utils.js",
+		"html-minify.js",
+		"index.d.ts",
+		"README.md",
+		"README_ZH.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"vitest": "^3.0.5"
+	},
+	"keywords": [
+		"vite",
+		"vite-plugin",
+		"mpa",
+		"multi-page",
+		"html"
+	],
+	"author": "moqi (str@li.cm)",
+	"license": "MIT",
+	"peerDependencies": {
+		"vite": ">=3.0.0"
+	},
+	"dependencies": {
+		"html-minifier-terser": "^7.2.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/strugglerx/vite-mpa-plugin.git"
+	},
+	"bugs": {
+		"url": "https://github.com/strugglerx/vite-mpa-plugin/issues"
+	},
+	"homepage": "https://github.com/strugglerx/vite-mpa-plugin#readme"
+}
