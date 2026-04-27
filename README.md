@@ -6,9 +6,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Vite](https://img.shields.io/badge/Vite-Plugin-646CFF?logo=vite)](https://vitejs.dev)
 
-A [Vite](https://vitejs.dev) plugin for **multi-page (MPA)** setups. It pairs with `build.rollupOptions.input` and multiple `index.html` entries: it resolves virtual entry IDs, serves the right page in **dev** (with optional `base` stripping), and supports optional **build-time** HTML minification.
+A [Vite](https://vitejs.dev) plugin for **multi-page (MPA)** apps. For each `build.rollupOptions.input` entry, the **key** chooses the **virtual** HTML path (and thus the usual `dist/…` layout), while the **value** points at the real `*.html` on disk (absolute paths are fine). Virtual module resolution keeps dev and build consistent; optional build-time HTML minify. See [CHANGELOG.md](./CHANGELOG.md) for release notes.
 
 **npm:** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **GitHub:** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin)
+
+|  |  |
+|--|--|
+| Key → output | Virtual path per [key rules](#rollup-input-keys-and-virtual-paths); `writeBundle` relayout to match when Vite first emits under the source tree. |
+| Same file, many keys | Multiple `input` keys can target one `*.html`; each key gets its own output path. |
+| Dev | `configureServer` with `order: 'pre'`, URL shape close to production; `base` stripping. |
+| `./main.js` | Optional rewrite of relative `script` / `link` URLs to root-based paths (`rewriteHtmlRelativeToRoot`, on by default). |
+| More | `inject`, `styleInline`, `createMpaPlugin` + `htmlMinify`. |
+
+**Example** [example/](example/): two Vue 3 mini-apps under `app/page1/` and `app/page2/`; keys `main` and `login` → `dist/main/index.html`, `dist/login/index.html`. A root `public/index.html` is the nav; the first app is not keyed `index` to avoid clashing with `/index.html`.
 
 ## Contents
 
@@ -24,6 +34,7 @@ A [Vite](https://vitejs.dev) plugin for **multi-page (MPA)** setups. It pairs wi
 - [Inline styles (`replaceIndexStyle`)](#inline-styles-replaceindexstyle)
 - [Exports](#exports)
 - [Links](#links)
+- [Changelog](#changelog)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -75,6 +86,10 @@ export default {
 |-----------------|--------------------------------|------|
 | `index` | `dist/index.html` | Main entry, matches `index: "index.html"` on disk |
 | `about` | `dist/about.html` | Named from the key — **not** `dist/about/index.html` unless you change Rollup output options |
+
+**With this plugin:** the **virtual** HTML path (and, after a built-in relayout step, the `dist/…` layout) follow the **rollup `input` key** and the [virtual-path table](#rollup-input-keys-and-virtual-paths) (e.g. key `main` + file `app/page1/index.html` → `main/index.html` at `dist/…`). The **value** in `input` is the real `*.html` on disk; script and asset resolution use that file’s real directory. (Vite may first emit under the source path; the plugin then moves the file to the key path when they differ, without an `outHtml` option.)
+
+**Multiple keys for the same `*.html`:** you get one built HTML per key (same content, different output paths). The plugin copies from Vite’s single emitted file under the source path to **each** target path, then deletes the source once. If you open the project by the deep source URL in dev, the first matching key wins for `inject` / context.
 
 If you set `entryFileNames`, extra output dirs, or other Rollup options, your layout may differ; run `npx vite build` and inspect. See [Vite — Multi-page app](https://vitejs.dev/guide/build.html#multi-page-app).
 
@@ -134,9 +149,10 @@ export default {
 | `styleInline` | same | For “directory” `load` paths (e.g. `about/index.html` → `about` key), whether to inject `<style>` via a script. Default `true`; set `false` to skip. |
 | `transformHtml` | same | `(html, { key, phase: 'load' \| 'serve' }) =>` HTML. See pipeline below. |
 | `debug` | same | `true` logs resolution under `[vite-plugin-mpa]`. |
+| `rewriteHtmlRelativeToRoot` | same | Default `true`: rewrites `./` / `../` in `script[src]` and `link[href]` to a path from project `root` (with `config.base`), so `./main.js` still works when `input` keys do not mirror the source folder and `dist` HTML is moved to the key path. Set `false` if you only use fixed or root-absolute URLs. |
 | `htmlMinify` | `createMpaPlugin` only | `true` (defaults), an options object, or unset (no minify plugin). |
 
-**`load` pipeline (directory / nested entry):** read disk → `transformHtml` (`phase: 'load'`) → if `styleInline !== false`, `replaceIndexStyle` → `replaceInject`.  
+**`load` pipeline (directory / nested entry):** read disk → `transformHtml` (`phase: 'load'`) → optional `rewriteHtmlRelativeToRoot` → if `styleInline !== false`, `replaceIndexStyle` → `replaceInject`.  
 **“Direct” entry (key is `*.html`-style as resolved):** read → `transformHtml` → `replaceInject` (no `replaceIndexStyle`).  
 **Dev server:** read → `transformHtml` (`phase: 'serve'`) → `replaceInject` (no `replaceIndexStyle`).
 
@@ -177,6 +193,8 @@ On `load`, besides matching a key that equals a relative path, the plugin can st
 
 After ignoring paths that contain `@` (Vite internals), the middleware **strips** [`config.base`](https://vitejs.dev/config/shared-options.html#base) from the URL (e.g. `base: '/app/'` and request `/app/about` → match `input` key `about`). Path shape rules (empty, `.html`, or extensionless) align with the [build key table](#build-output-in-dist) above; the **new** part here is `base` handling.
 
+**Dev URLs match the virtual paths** (same rules as the [virtual-path table](#rollup-input-keys-and-virtual-paths) and the built `dist` layout, e.g. key `index` → `/index.html`, key `login` → `/login/index.html`). The middleware is registered with **`configureServer` + `order: 'pre'`** so it usually runs **before** static `public` files, and you can open those paths without relying on a deep source-only URL. If both `public/index.html` and an MPA `index` key exist, they compete for `/index.html`—use another key (e.g. `main`) for the app, or adjust `public`.
+
 ## Inline styles (`replaceIndexStyle`)
 
 When a `load` only matches by stripping the trailing `index.html` segment, `<style>` blocks are moved into a runtime `<script>` that creates a `<style>` element, using `textContent` and `JSON.stringify` so CSS with backticks / `${` does not break the script. Set `styleInline: false` to skip, or use a “direct” match so this branch is not used.
@@ -187,6 +205,10 @@ When a `load` only matches by stripping the trailing `index.html` segment, `<sty
 |------|-------------|
 | `MpaPlugin` | Returns a Vite plugin. Options in the [table](#options). |
 | `createMpaPlugin` | Returns an array of plugins; can append minify. `htmlMinify` is not passed to `MpaPlugin`. |
+
+## Changelog
+
+[CHANGELOG.md](./CHANGELOG.md) (breaking changes on major bumps).
 
 ## Links
 

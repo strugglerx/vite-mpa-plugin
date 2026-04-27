@@ -1,3 +1,5 @@
+import path from "path"
+
 const bodyInject = /<\/body>/
 
 export function replaceSlash(str) {
@@ -89,4 +91,63 @@ export function replaceIndexStyle(code) {
 export function replaceInject(html, inject) {
 	inject = inject || {}
 	return html.replace(/<%=\s*(\w+)\s*%>/gi, (match, p1) => inject[p1] || "")
+}
+
+/**
+ * 将 `<script src="./...">`、`<link href="./...">` 中相对当前 HTML 的路径，改为相对 Vite `root` 的「站点」URL（带 `config.base` 前缀），
+ * 多页 `input` 的键与源码目录脱钩、且构建后 HTML 会挪到 `dist` 的键名路径时，Vite 仍能稳定解析到真实 `main.js` 等，而不必在源码里写死根路径。
+ * @param {string} base Vite 的 `config.base`，如 `/` 或 `/app/`
+ */
+export function rewriteHtmlRelativeAssetRefsToRoot(html, absHtmlFile, root, base = "/") {
+	if (html == null || absHtmlFile == null || root == null) return html
+	const rootNorm = path.normalize(root)
+	const absDir = path.dirname(path.normalize(absHtmlFile))
+
+	function relToUrl(/** @type {string} */ relUrl) {
+		if (relUrl == null || relUrl === "" || (!relUrl.startsWith("./") && !relUrl.startsWith("../"))) return null
+		let resolved
+		try {
+			resolved = path.normalize(path.resolve(absDir, relUrl))
+		} catch {
+			return null
+		}
+		let fromRoot
+		try {
+			fromRoot = path.relative(rootNorm, resolved)
+		} catch {
+			return null
+		}
+		if (!fromRoot || fromRoot.startsWith("..") || path.isAbsolute(fromRoot)) return null
+		return rootRelToPublicUrl(fromRoot, base)
+	}
+
+	function sub(/** @type {string} */ _m, p1, quote, relUrl) {
+		const u = relToUrl(relUrl)
+		return u == null ? _m : `${p1}${quote}${u}${quote}`
+	}
+
+	let out = html
+	out = out.replace(/(<script\b[^>]*\bsrc=)(["'])(\.\.?\/[^"']*)\2/gi, sub)
+	out = out.replace(/(<link\b[^>]*\bhref=)(["'])(\.\.?\/[^"']*)\2/gi, sub)
+	return out
+}
+
+/**
+ * 相对 project root 的 posix 段 → 带 base 的浏览器路径（/app/v3/main.js 或 /sub/app/v3/main.js）
+ * @param {string} relFromRoot 如 `app/v3/main.js`（无开头 /）
+ * @param {string} [base]
+ */
+function rootRelToPublicUrl(relFromRoot, base) {
+	const r = replaceSlash(relFromRoot).replace(/^\/+/, "")
+	const b = base == null || base === "" ? "/" : String(base).replace(/\\/g, "/")
+	if (b === "/" || b === "./") return `/${r}`
+	if (/^https?:\/\//i.test(b)) {
+		try {
+			return new URL(r, b.endsWith("/") ? b : `${b}/`).href
+		} catch {
+			return `/${r}`
+		}
+	}
+	const prefix = b.endsWith("/") ? b : `${b}/`
+	return `${prefix}${r}`.replace(/([^/])\/\//g, "$1/").replace(/^\/{2,}/, "/")
 }

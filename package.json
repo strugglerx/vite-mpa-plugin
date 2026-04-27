@@ -1,7 +1,7 @@
 {
 	"name": "@struggler/vite-plugin-mpa",
-	"version": "1.1.1",
-	"description": "Vite MPA plugin: virtual multi-entry HTML resolve, dev server routing with optional base, optional HTML minify.",
+	"version": "2.0.0",
+	"description": "Vite MPA: input keys map to dist HTML paths; virtual resolve, dev middleware (pre), relative script rewrite, optional HTML minify.",
 	"type": "module",
 	"main": "./index.js",
 	"types": "./index.d.ts",
@@ -20,6 +20,7 @@
 		"index.d.ts",
 		"README.md",
 		"README_ZH.md",
+		"CHANGELOG.md",
 		"LICENSE"
 	],
 	"scripts": {

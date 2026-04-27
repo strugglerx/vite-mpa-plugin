@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest"
-import { stripBaseFromPathname, resolveInputKey, getMergedInject, replaceIndexStyle, replaceInject } from "../utils.js"
+import {
+	stripBaseFromPathname,
+	resolveInputKey,
+	getMergedInject,
+	replaceIndexStyle,
+	replaceInject,
+	rewriteHtmlRelativeAssetRefsToRoot,
+} from "../utils.js"
+import { computeVirtualPath } from "../plugin.js"
 
 describe("stripBaseFromPathname", () => {
 	it("root base", () => {
@@ -51,8 +59,39 @@ describe("replaceIndexStyle", () => {
 	})
 })
 
+describe("rewriteHtmlRelativeAssetRefsToRoot", () => {
+	const root = "/proj/app-root"
+	const absHtml = "/proj/app-root/app/v3/index.html"
+	it("rewrites ./main.js to root URL path", () => {
+		const html = '<script type="module" src="./main.js"></script>'
+		const out = rewriteHtmlRelativeAssetRefsToRoot(html, absHtml, root, "/")
+		expect(out).toContain('src="/app/v3/main.js"')
+	})
+	it("applies config.base", () => {
+		const html = '<script type="module" src="./main.js"></script>'
+		const out = rewriteHtmlRelativeAssetRefsToRoot(html, absHtml, root, "/sub/")
+		expect(out).toContain('src="/sub/app/v3/main.js"')
+	})
+})
+
 describe("replaceInject", () => {
 	it("replaces tags", () => {
 		expect(replaceInject("<p><%=x%></p>", { x: "h" })).toBe("<p>h</p>")
+	})
+})
+
+describe("computeVirtualPath", () => {
+	const root = "/proj"
+	const indexKey = "index.html"
+	it("与磁盘路径无关，只按 input 键决定虚拟路径，便于 dist 与键一致", () => {
+		expect(computeVirtualPath("index", "app/page1/index.html", root, indexKey)).toBe("index.html")
+		expect(computeVirtualPath("main", "app/page1/index.html", root, indexKey)).toBe("main/index.html")
+		expect(computeVirtualPath("login", "app/page2/index.html", root, indexKey)).toBe("login/index.html")
+	})
+	it("无 root 时同样只按键", () => {
+		expect(computeVirtualPath("about", "src/a.html", undefined, indexKey)).toBe("about/index.html")
+	})
+	it("键本身以 .html 结尾时原样为虚拟路径", () => {
+		expect(computeVirtualPath("x/entry.html", "elsewhere/entry.html", root, indexKey)).toBe("x/entry.html")
 	})
 })

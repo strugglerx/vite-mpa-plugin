@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>MPA 示例 — 入口导航</title>
+		<style>
+			body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+			li { margin: 0.5rem 0; }
+		</style>
+	</head>
+	<body>
+		<h1>vite-plugin-mpa 示例</h1>
+		<p>两个独立多页入口（各有一套 Vue + vue-router，互不打包在一起）。</p>
+		<ul>
+			<li>
+				<a href="/main/index.html">Page 1</a>（键 <code>main</code>，源在 <code>app/page1/</code>）
+			</li>
+			<li>
+				<a href="/login/index.html">Page 2</a>（键 <code>login</code>，源在 <code>app/page2/</code>）
+			</li>
+		</ul>
+		<p><small>子应用内用 Hash 路由。构建后 HTML 在 <code>main/index.html</code>、<code>login/index.html</code>，不再留在 <code>app/…</code>。</small></p>
+	</body>
+</html>
