@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.2
+
+仅文档与说明。
+
+- **适用场景**后增加 **「何时不必用、与别种形态怎么分」**（单页、纯多页、多包 monorepo、与本插件形态对照）。
+- **`input` 与 `dist` 树**：与 [example](example/) 的 `index`+`main`+`login` 及 `rollup output` 下 `static/` 布局示例对齐；说明 chunk 目录取决于 `build.rollupOptions.output`。
+
 ## 1.2.1
 
 ### 新增

@@ -11,10 +11,20 @@
 适合这些情况：
 
 - **一个仓库里多套互相独立的前端**（如多个子目录各有一套 `index.html` + 入口 JS/Vue，彼此之间不必打进同一个单页 bundle）：活动页、管理端与官网后台、**同一 Vite 项目里多个「小站点」**等。
+- **多入口、但共用通用组件与基建**（`components/`、`shared/`、`utils/` 等被多个子应用引用）：每个「项目」仍是**独立 HTML 入口与打包产物**，却可复用同一套 UI、主题或业务组件，实现**不同形态/不同路由应用**而不必拆成多个仓库；与单页里拆 route 不同，这里是**多套独立 bundle**，由本插件把各入口的 dev/build 路径对齐。
 - 希望 **线上或静态托管时的访问路径** 由你自定义（`main/login/promo` 等），**不强制** 与源码目录一一对应；`rollupOptions.input` 的 **键** 决定 `dist` 里 HTML 落在哪、**值** 仍指向真实 `*.html`（见下节 [`input` 与产物](#input-怎么配产物在哪里)）。
 - 需要 **开发 `pnpm run dev` 与 `vite build` 用同一套规则**（虚拟路径、`base` 一致），并可选在启动 dev 时 **打印「键 → 页面 URL」映射**（`logInputMap`）。
 
 本插件不替代 Vite 自带的多页配置，而是补上 **多入口在 dev/build 下路径一致、相对脚本可写、键 `index` 在根上单独成页** 等 MPA 常见痛点。更细的机制见 [它解决什么问题](#它解决什么问题)。
+
+### 何时不必用、与别种形态怎么分
+
+| 形态 | 说明 |
+|------|------|
+| **标准单页（SPA）** | 一个 `index.html`、一个入口，用 vue-router 等切页面——**一般不需要**本插件。 |
+| **纯多页、且不在意 dev URL 与 `dist` 结构是否和「键名规则」一致** | 可先用**不带**本插件的 Vite 多页；遇到相对资源、dev/build 路径不一致再考虑接入。 |
+| **pnpm / npm 多包 monorepo** | 每个包各自一个 Vite 工程、各自 `index.html` 时，是**多仓库式**组织，通常**不依赖**本插件的「同仓多入口虚拟路径」能力；只有当你**坚持单包多 HTML 入口**时才相关。 |
+| **本插件对应的形态** | **同一份 Vite 配置里多个 `input`、多份独立主 bundle**；可与 **共用 `components/`** 等并存，但**不是**「一个大 SPA 里多路由」的同一件事。 |
 
 **npm 包：** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **源码仓库：** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin) · 更新说明 [CHANGELOG.md](./CHANGELOG.md)
 
@@ -33,6 +43,7 @@
 ## 目录
 
 - [适用场景](#适用场景)
+- [何时不必用、与别种形态怎么分](#何时不必用与别种形态怎么分)
 - [它解决什么问题](#它解决什么问题)
 - [要求](#要求)
 - [安装](#安装)
@@ -89,26 +100,29 @@ yarn add @struggler/vite-plugin-mpa
 | `index` | `index.html`（**仅根下这一份**，没有 `index/` 目录） |
 | 其它单段键，如 `main`、`login` | `键名/index.html`，如 `main/index.html` |
 
-**配置与结果示例**（同 [example](example/)）：
+**配置与结果示例**（与 [example/vite.config.js](example/vite.config.js) 一致时可含多键同页）：
 
 ```js
 // build.rollupOptions.input
 {
-  main:  "app/page1/index.html",
+  index: "app/page1/index.html",
+  main:  "app/page1/index.html", // 与 index 同页，打两份到不同 URL
   login: "app/page2/index.html",
 }
 ```
 
-→ 得到 `dist/main/index.html`、`dist/login/index.html`。`public/index.html` 若存在，会**额外**被 Vite 复制为 `dist/index.html`，**不是**由上面某一条 `input` 算出来的；example 用键名 `main` 而不是 `index`，避免和根 `index` 争路径。
+→ 键 `index` → 根上 `index.html`；`main` / `login` → `main/index.html`、`login/index.html`（见 [键与虚拟路径](#rollupoptionsinput-的键与虚拟路径)）。`public/index.html` 若存在也会复制到根上 `index.html`，与是否再配键 `index` 可能**冲突**，需二选一或改名（见 [开发服务器与 `base`](#开发服务器与-base)）。
 
-`dist` 实勘树（[example](example/) 在 `example/` 下 `vite build`，`assets` 里带 hash 的文件名每次构建可能变）：
+`dist` 实勘树（在 `example/` 下 `vite build`；**JS/CSS 等 chunk 目录**由 `build.rollupOptions.output` 决定，默认多为 `assets/`，[example](example/) 内为 `static/js/`、`static/css/` 等；带 hash 的文件名每次构建可能变）：
 
 ```text
 example/dist/
-├── index.html                 # public
+├── index.html                 # 根页：常来自 public；若同时用键 index 会与 public 争路径
 ├── main/index.html            # 键 main
-├── login/index.html          # 键 login
-└── assets/                    # JS/CSS 等
+├── login/index.html           # 键 login
+└── static/                    # example 自定义 output；默认无此层则为 assets/
+    ├── js/…
+    └── css/…
 ```
 
 Vite 可能先把 HTML 按源码位置写出，插件再在 `writeBundle` 里**挪**到上表对应路径。**多个键**指向**同一份** `*.html` 时，会打多份，各落一路径；你改了 `rollupOptions.output` 等时以实勘为准。无插件时纯 Vite 多页常是 `dist/键名.html`，与上表**不同**。[Vite 多页说明](https://cn.vitejs.dev/guide/build.html#multi-page-app)。

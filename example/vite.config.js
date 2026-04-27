@@ -22,6 +22,14 @@ export default defineConfig({
 				main: r("app/page1/index.html"),
 				login: r("app/page2/index.html"),
 			},
+			output: {
+				chunkFileNames: `static/js/[name]-[hash].js`,
+				entryFileNames: `static/js/[name]-[hash].js`,
+				assetFileNames: `static/[ext]/[name]-[hash].[ext]`,
+				/* manualChunks: {
+					vue: ["vue"]
+				}, */
+			},
 		},
 	},
 })

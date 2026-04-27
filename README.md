@@ -9,10 +9,22 @@
 ## When to use it
 
 - **Multiple independent frontends in one repo** — e.g. several folders each with `index.html` + app entry, without merging them into one SPA bundle: landing pages, admin vs marketing, or several “mini sites” in a single Vite project.
+- **Shared components, separate “projects”** — e.g. `components/`, `shared/`, or `utils/` imported from more than one entry folder. Each product stays its **own HTML entry and JS bundle**, but you reuse the same UI kit, theme, or hooks. Good for one design system with **multiple deployable surfaces** (not the same as one SPA with many routes — here each entry is built separately; this plugin keeps dev/build URL rules consistent for all of them).
 - **URLs you control** — deployment paths like `/main/`, `/login/` come from the **`input` key**, while the **value** is still the real `*.html` on disk; no need to mirror the source tree (see [`input` → where files land](#input--where-files-land-in-dist)).
 - **Same rules in dev and build** — virtual paths, `config.base`, and optional **startup log of key → page URL** on `pnpm run dev` (`logInputMap`).
 
 This plugin augments Vite’s multi-page flow so dev and build stay aligned, relative scripts keep working, and the special `index` key maps to a single root `index.html`. Details: [What it does](#what-it-does).
+
+### When you might skip it
+
+*Compared to a single-page app, plain MPA, or a multi-package monorepo:*
+
+| Situation | Notes |
+|-----------|--------|
+| **Classic SPA** | One `index.html`, one entry, client-side routes — you usually **don’t** need this plugin. |
+| **Plain Vite MPA** | If you don’t care about **dev URL vs `dist` layout** matching the “key rules” below, try **without** the plugin first; add it if relative assets or path mismatch bite you. |
+| **pnpm / npm monorepo** | One Vite app per package, each with its own `index.html` — that’s a **multi-package** setup; you often **don’t** need this plugin unless you want **one project, several HTML entries** with virtual paths. |
+| **This plugin** | **Several `input` entries in one Vite app**, each its **own main bundle**; you can still share `components/`, but it is **not** the same as “one big SPA, many routes”. |
 
 **npm:** [`@struggler/vite-plugin-mpa`](https://www.npmjs.com/package/@struggler/vite-plugin-mpa) · **GitHub:** [`strugglerx/vite-mpa-plugin`](https://github.com/strugglerx/vite-mpa-plugin) · [CHANGELOG.md](./CHANGELOG.md)
 
@@ -29,6 +41,7 @@ This plugin augments Vite’s multi-page flow so dev and build stay aligned, rel
 ## Contents
 
 - [When to use it](#when-to-use-it)
+- [When you might skip it](#when-you-might-skip-it)
 - [What it does](#what-it-does)
 - [Requirements](#requirements)
 - [Install](#install)
@@ -85,26 +98,29 @@ yarn add @struggler/vite-plugin-mpa
 | `index` | `index.html` only at the root (**not** `index/index.html`) |
 | Other one-segment keys, e.g. `main`, `login` | `key/index.html` |
 
-**Example (same as [example](example/)):**
+**Example (see [example/vite.config.js](example/vite.config.js) for `output` and optional multi-key / same file):**
 
 ```js
 // build.rollupOptions.input
 {
-  main:  "app/page1/index.html",
+  index: "app/page1/index.html",
+  main:  "app/page1/index.html", // two keys → two URLs, same file on disk
   login: "app/page2/index.html",
 }
 ```
 
-→ `dist/main/index.html` and `dist/login/index.html`. If `public/index.html` exists, Vite also copies it to `dist/index.html` — that file is **not** produced by a key above. The example uses `main` instead of `index` for the first app to avoid clashing with the root `index.html`.
+Key `index` → root `index.html`; `main` / `login` → `main/index.html`, `login/index.html` (see [virtual-path rules](#rollup-input-keys-and-virtual-paths)). A root `public/index.html` is also copied to `index.html` — that can **clash** with an `index` key; resolve by renaming the key, moving `public`, or similar (see [Dev server and `base`](#dev-server-and-base)).
 
-**Sample tree** after `vite build` in `example/` (hashed `assets/*` names change between builds):
+**Sample tree** after `vite build` in `example/`: **chunk layout** (`assets/` vs `static/js/`, etc.) is controlled by `build.rollupOptions.output` (the example uses `static/…`); file names with hashes can change every build.
 
 ```text
 example/dist/
-├── index.html          # from public
+├── index.html          # often from public; conflicts with `index` key if both set
 ├── main/index.html     # key main
 ├── login/index.html    # key login
-└── assets/             # JS/CSS chunks
+└── static/             # example’s custom `output`; default is often `assets/`
+    ├── js/…
+    └── css/…
 ```
 
 Vite may emit HTML under the **source** path first; this plugin then **moves** it in `writeBundle` to match the table. **Several keys** for the **same** `*.html` produce one output per key. If you change Rollup `output` options, verify with a real build. **Plain Vite (no plugin)** often uses `key.html` at the **root** of `dist` — different from the table. See [Vite — MPA](https://vitejs.dev/guide/build.html#multi-page-app) and the [virtual-path table](#rollup-input-keys-and-virtual-paths).
