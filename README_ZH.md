@@ -217,7 +217,7 @@ MpaPlugin({
 
 ## 更新日志
 
-[CHANGELOG.md](./CHANGELOG.md)（主版本升级与破坏性变更说明）。
+[CHANGELOG.md](./CHANGELOG.md)（各版本变更与升级注意说明）。
 
 ## 相关链接
 

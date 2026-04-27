@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.0.0
+## 1.2.0
 
-**Breaking changes (相对 1.x)**：产物 HTML 的**相对 `dist` 路径**由 `rollupOptions.input` 的**键**按 [虚拟路径规则](README_ZH.md#rollupoptionsinput-的键与虚拟路径)决定，不再强制与源码目录一致；构建时若与 Vite 先写出的路径不同，插件会在 `writeBundle` 中**移动/复制** HTML。从 1.x 升级请检查线上 URL、导航链接与 `public` 里是否已有与键同名的 `index.html`。
+**相对 1.1.x 的重要变更**：产物 HTML 的**相对 `dist` 路径**由 `rollupOptions.input` 的**键**按 [虚拟路径规则](README_ZH.md#rollupoptionsinput-的键与虚拟路径)决定，不再强制与源码目录一致；构建时若与 Vite 先写出的路径不同，插件会在 `writeBundle` 中**移动/复制** HTML。从 1.1.x 升级请检查线上 URL、导航链接与 `public` 里是否已有与键同名的 `index.html`。
 
 ### 新增与行为
 

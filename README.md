@@ -208,7 +208,7 @@ When a `load` only matches by stripping the trailing `index.html` segment, `<sty
 
 ## Changelog
 
-[CHANGELOG.md](./CHANGELOG.md) (breaking changes on major bumps).
+[CHANGELOG.md](./CHANGELOG.md) (notable changes between versions).
 
 ## Links
 
