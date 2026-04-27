@@ -1,6 +1,6 @@
 {
 	"name": "@struggler/vite-plugin-mpa",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Vite MPA plugin: virtual multi-entry HTML resolve, dev server routing with optional base, optional HTML minify.",
 	"type": "module",
 	"main": "./index.js",
